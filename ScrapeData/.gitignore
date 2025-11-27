@@ -1,0 +1,118 @@
+# Core LaTeX auxiliary files
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+# Intermediate documents
+*.dvi
+*.xdv
+*-converted-to.*
+
+# Bibliography auxiliary files
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+# Build tool auxiliary files
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+# Build directories
+build/
+output/
+
+# Glossaries
+*.acn
+*.acr
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.lzo
+*.lzs
+
+# Index files
+*.idx
+*.ilg
+*.ind
+
+# Hyperref
+*.brf
+
+# Knitr
+*-concordance.tex
+
+# Listings
+*.lol
+
+# Nomenclature
+*.nlg
+*.nlo
+*.nls
+
+# Python (if using pythontex)
+*.pytxcode
+pythontex-files-*/
+
+# TikZ & PGF
+*.figlist
+*.makefile
+
+# Beamer
+*.nav
+*.pre
+*.snm
+*.vrb
+
+# Changes tracking
+*.soc
+
+# Comment package
+*.cut
+
+# Latexmk
+*.fdb_latexmk
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor backup files
+*~
+*.swp
+*.swo
+*.bak
+*.backup
+
+# TeXnicCenter
+*.tps
+
+# Visual Studio Code
+.vscode/
+
+# Keep PDFs in output folder but ignore build PDFs (optional)
+*.pdf
+
+*.csv
+*.xlsx
