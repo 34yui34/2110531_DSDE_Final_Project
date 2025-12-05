@@ -2,25 +2,22 @@
 # =====================================================
 
 # Core Dependencies
-streamlit==1.29.0
-pyspark==3.5.0
-pandas==2.1.4
-numpy==1.26.2
+streamlit
+pyspark
+pandas
+numpy
 
 # Geocoding
-requests==2.31.0
+requests
 
 # Map Visualization
-folium==0.15.1
-streamlit-folium==0.16.0
-geopandas==0.14.1
-shapely==2.0.2
+folium
+streamlit-folium
+geopandas
+shapely
 
 # Optional: Better performance
-pyarrow==14.0.1
-fastparquet==2023.10.1
+pyarrow
+fastparquet
 
-# Java Runtime (required for PySpark)
-# Note: Install separately
-# Ubuntu/Debian: sudo apt-get install openjdk-11-jdk
-# macOS: brew install openjdk@11
+#install openjdk-17-jdk: https://adoptium.net/en-GB/temurin/releases?version=17&os=any&arch=any
