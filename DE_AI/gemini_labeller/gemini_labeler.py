@@ -32,6 +32,22 @@ client = genai.Client(api_key=args.api_key)
 print(f"✅ Using model: {args.model}")
 
 ###############################################################################
+# LABEL MAPPING
+###############################################################################
+LABEL_MAP = {
+    "0": "Not Sufficient",
+    "1": "Sufficient", 
+    "2": "Uncertain (has partial evidence)",
+    "253": "Missing in JSON Response",
+    "254": "Invalid Label from LLM",
+    "255": "API Error"
+}
+
+def get_label_description(label_code):
+    """Convert numeric label code to descriptive text"""
+    return LABEL_MAP.get(str(label_code), "Unknown")
+
+###############################################################################
 # SYSTEM PROMPT
 ###############################################################################
 SYSTEM_PROMPT = """คุณเป็นผู้ช่วยในการประเมินคุณภาพของเรื่องร้องเรียนจากประชาชนในกรุงเทพมหานคร ที่จะส่งไปยังส่วนบริหารงานกรุงเทพมหานคร
@@ -71,7 +87,7 @@ SYSTEM_PROMPT = """คุณเป็นผู้ช่วยในการป�
 1. วิเคราะห์ทีละขั้นตอนตามกระบวนการด้านบน
 2. ตอบด้วย JSON object ที่มี:
    - "id": Ticket ID ของเรื่องร้องเรียน (ใช้ค่าที่ระบุไว้ใน Ticket ID)
-   - "reasoning": การวิเคราะห์โดยย่อ (อธิบายการคิดของคุณในฐานะเจ้าหน้าที่)
+   - "reasoning": การวิเคราะห์โดยย่อ (อธิบายการคิดของคุณในฐานะเจ้าหน้าที่ ไม่เกิน 2-3 ประโยค)
    - "label": ตัวเลข 0, 1, หรือ 2
 
 ตัวอย่างรูปแบบการตอบ:
@@ -212,35 +228,51 @@ async def classify_batch(session, batch_df, batch_num, debug_file):
         try:
             results = json.loads(text)
             
-            # Create a mapping from ticket_id to label
+            # Create mappings from ticket_id to label and reasoning
             label_map = {}
+            reasoning_map = {}
+            
             for item in results:
                 if isinstance(item, dict) and "id" in item and "label" in item:
+                    ticket_id_str = str(item["id"])
                     label_str = str(item["label"])
+                    reasoning = item.get("reasoning", "")
+                    
                     # Validate label is 0, 1, or 2
                     if label_str in ["0", "1", "2"]:
-                        label_map[str(item["id"])] = label_str
+                        label_map[ticket_id_str] = label_str
+                        reasoning_map[ticket_id_str] = reasoning
                     else:
-                        label_map[str(item["id"])] = "254"  # Invalid label from LLM
+                        label_map[ticket_id_str] = "254"  # Invalid label from LLM
+                        reasoning_map[ticket_id_str] = "Invalid label returned by LLM"
             
-            # Return labels in order, matching by ticket_id
+            # Return labels and reasoning in order, matching by ticket_id
             batch_results = []
             for ticket_id in batch_ticket_ids:
                 ticket_id_str = str(ticket_id)
                 if ticket_id_str in label_map:
-                    batch_results.append(label_map[ticket_id_str])
+                    batch_results.append({
+                        "label": label_map[ticket_id_str],
+                        "reasoning": reasoning_map[ticket_id_str]
+                    })
                 else:
-                    batch_results.append("253")  # Missing result in JSON
+                    batch_results.append({
+                        "label": "253",
+                        "reasoning": "Missing result in JSON response"
+                    })
             
             return batch_results
             
         except json.JSONDecodeError:
             # If JSON parsing fails, return 253 for all
-            return ["253"] * len(batch_indices)
+            return [{"label": "253", "reasoning": "Failed to parse JSON response"} 
+                    for _ in batch_indices]
 
     except Exception as e:
         # Error occurred, return 255 for all in batch
-        return ["255"] * len(batch_df)
+        error_msg = f"API error: {str(e)}"
+        return [{"label": "255", "reasoning": error_msg} 
+                for _ in range(len(batch_df))]
 
 ###############################################################################
 # CLASSIFY ALL
@@ -301,25 +333,25 @@ def main():
     print(f"Debug output: {args.debug}")
 
     print("Running LLM classification...")
-    labels = asyncio.run(classify_all(df, concurrency=args.concurrency, batch_size=args.batch_size, debug_file=args.debug))
-    df["llm_label"] = labels
+    results = asyncio.run(classify_all(df, concurrency=args.concurrency, batch_size=args.batch_size, debug_file=args.debug))
+    
+    # Extract labels and reasoning from results
+    labels = [r["label"] for r in results]
+    reasonings = [r["reasoning"] for r in results]
+    
+    # Convert numeric labels to descriptive text
+    df["llm_label"] = [get_label_description(label) for label in labels]
+    df["llm_reasoning"] = reasonings
 
     print("Saving output to:", args.output)
     df.to_csv(args.output, index=False)
     
     # Print summary statistics
-    label_counts = df["llm_label"].value_counts()
+    label_counts = pd.Series(labels).value_counts()
     print("\nResults Summary:")
     for label, count in label_counts.items():
         percentage = (count / len(df)) * 100
-        label_desc = {
-            "0": "Not Sufficient",
-            "1": "Sufficient", 
-            "2": "Uncertain (has partial evidence)",
-            "253": "Missing in JSON Response",
-            "254": "Invalid Label from LLM",
-            "255": "API Error"
-        }.get(label, "Unknown")
+        label_desc = get_label_description(label)
         print(f"   {label} ({label_desc}): {count} ({percentage:.1f}%)")
     
     print("Done!")

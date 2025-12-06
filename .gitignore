@@ -113,3 +113,8 @@ Thumbs.db
 
 # Keep PDFs in output folder but ignore build PDFs (optional)
 *.pdf
+
+# Ignore parquet_data and dataset
+parquet_data/
+dataset/
+debug.txt

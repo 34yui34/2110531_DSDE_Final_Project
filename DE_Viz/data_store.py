@@ -43,14 +43,14 @@ class DataStore:
     DATA_DIR = None
     
     # Full paths to your files - UPDATED FOR YOUR WINDOWS SYSTEM
-    HOSPITALS_FILE = r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_Viz\output_csv_file\bangkok_hospitals_geocoded.csv"
-    HOSPITALS_FALLBACK = r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_Viz\input_csv_file\bangkok_hospitals.csv"
+    HOSPITALS_FILE = r"dataset/webscraping/output_csv_file/bangkok_hospitals_geocoded.csv"
+    HOSPITALS_FALLBACK = r"dataset/webscraping/input_csv_file/bangkok_hospitals.csv"
     
-    FIRE_STATIONS_FILE = r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_Viz\output_csv_file\fire_stations_geocoded.csv"
-    FIRE_STATIONS_FALLBACK = r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_Viz\input_csv_file\fire_stations.csv"
+    FIRE_STATIONS_FILE = r"dataset/webscraping/output_csv_file/fire_stations_geocoded.csv"
+    FIRE_STATIONS_FALLBACK = r"dataset/webscraping/input_csv_file/fire_stations.csv"
     
-    FIRE_DISASTER_FILE = r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_Viz\input_csv_file\fire_disaster_data.csv"
-    POPULATION_FILE = r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_Viz\input_csv_file\population.csv"
+    FIRE_DISASTER_FILE = r"dataset/webscraping/input_csv_file/fire_disaster_data.csv"
+    POPULATION_FILE = r"dataset/webscraping/input_csv_file/population.csv"
     
     def __new__(cls):
         """Singleton pattern - only one instance of DataStore."""
