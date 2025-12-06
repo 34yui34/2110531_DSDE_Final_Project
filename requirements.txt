@@ -6,6 +6,11 @@ streamlit
 pyspark
 pandas
 numpy
+argparse
+asyncio
+aiohttp
+tqdm
+google-genai
 
 # Geocoding
 requests

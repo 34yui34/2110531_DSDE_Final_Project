@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  streamlit-de-viz:
+    build:
+      context: .
+      dockerfile: DE_Viz/Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./DE_Viz:/DE_Viz
+      - ./dataset:/DE_Viz/dataset
+    command: streamlit run map_visualization.py
+  
+  streamlit-de-ai:
+    build:
+      context: .
+      dockerfile: DE_AI/Dockerfile
+    ports:
+      - "8502:8501"
+    volumes:
+      - ./DE_AI:/DE_AI
+      - ./dataset:/DE_AI/dataset
+    command: >
+      bash -c "python bootstrap_spark/bootstrap_spark.py && streamlit run streamlit_ui/streamlit_app.py"

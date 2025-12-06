@@ -20,6 +20,7 @@ FORCE_LIMIT_ENV = bool(os.environ.get("TRAFFY_UI_FORCE_LIMIT", False))
 # Optional Spark memory settings (tweak if you have more RAM)
 SPARK_DRIVER_MEM = os.environ.get("SPARK_DRIVER_MEMORY", "4g")
 SPARK_EXECUTOR_MEM = os.environ.get("SPARK_EXECUTOR_MEMORY", "4g")
+API_KEY = os.environ.get("GEMINI_API_KEY", None)
 
 DATA_PATH = "./DE_AI/parquet_data/traffy/complaints.parquet"
 
@@ -288,10 +289,10 @@ if "filtered_df" in st.session_state:
                 # Run your existing gemini script using the same Python interpreter
                 cmd = [
                     sys.executable,
-                    "./DE_AI/gemini_labeller/gemini_labeler.py",
+                    "gemini_labeller/gemini_labeler.py",
                     "--input", tmp_input_path,
                     "--output", tmp_output_path,
-                    "--api_key", "YOUR_API_KEY",
+                    "--api_key", API_KEY,
                 ]
 
                 with st.spinner(f"Running Gemini labeling on {unclassified_count:,} records..."):
