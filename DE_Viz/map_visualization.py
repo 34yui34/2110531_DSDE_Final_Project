@@ -2,12 +2,14 @@
 Bangkok Emergency Services - Interactive Map Dashboard
 ========================================================
 
-This Streamlit application provides 5 different map visualizations:
+This Streamlit application provides 7 different map visualizations:
 1. Bangkok Districts Map (GeoJSON)
 2. Hospital Locations with Info
 3. Fire Station Locations with Info
 4. Fire Incidents by District
 5. Population by District (Male/Female)
+6. Total Issues by District (NEW)
+7. Issue Classification by District (NEW)
 
 Usage:
     streamlit run map_visualization.py
@@ -42,15 +44,15 @@ st.set_page_config(
 st.markdown("""
     <style>
     .main-header {
-        font-size: 2.5rem;
+        font-size: 3.5rem;
         color: #FF4B4B;
         font-weight: bold;
         margin-bottom: 0.5rem;
     }
     .sub-header {
-        font-size: 1.2rem;
+        font-size: 1.5rem;
         color: #666;
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
     }
     .map-description {
         background-color: #f0f2f6;
@@ -58,6 +60,13 @@ st.markdown("""
         border-radius: 0.5rem;
         margin-bottom: 1rem;
         border-left: 4px solid #FF4B4B;
+    }
+    /* Hide the white divider line */
+    .css-1d391kg, div[data-testid="stHorizontalBlock"] {
+        border: none !important;
+    }
+    hr {
+        display: none !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -111,6 +120,44 @@ def load_geojson():
     return None
 
 
+@st.cache_data
+def load_complaints_data():
+    """
+    Load classified complaints data from CSV file.
+    This data comes from the Gemini AI classifier (streamlit_app.py).
+    """
+    # Possible paths for the complaints data
+    possible_paths = [
+        "labeled_output.csv",  # Current directory
+        "../DE_AI/shared_data/labeled_output.csv",  # From DE_Viz to DE_AI/shared_data
+        r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_AI\shared_data\labeled_output.csv",  # Absolute Windows path
+        "/shared_data/labeled_output.csv",  # Docker shared volume
+        "/mnt/user-data/uploads/labeled_output.csv",  # Uploaded file
+        "./dataset/labeled_output.csv",  # Dataset folder
+        "../shared_data/labeled_output.csv",  # Parent shared_data
+        "./shared_data/labeled_output.csv",  # Local shared_data
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            print(f"✅ Found complaints data at: {path}")
+            try:
+                df = pd.read_csv(path)
+                # Filter for Bangkok only
+                if 'province' in df.columns:
+                    df = df[df['province'] == 'กรุงเทพมหานคร'].copy()
+                return df
+            except Exception as e:
+                print(f"❌ Error loading {path}: {e}")
+                continue
+    
+    print("❌ Complaints data not found. Searched in:")
+    for path in possible_paths:
+        print(f"   - {path}")
+    
+    return pd.DataFrame()  # Return empty DataFrame if not found
+
+
 # ============================================================================
 # MAP CREATION FUNCTIONS
 # ============================================================================
@@ -148,9 +195,45 @@ def create_map_1_districts(geojson_data):
         """)
         return m
     
-    # Add GeoJSON layer with styling
+    # Filter for Bangkok districts only
+    bangkok_geojson = geojson_data.copy()
+    
+    # List of Bangkok district names (in Thai and English)
+    bangkok_districts_th = [
+        'พระนคร', 'ดุสิต', 'หนองจอก', 'บางรัก', 'บางเขน', 'บางกะปิ', 'ปทุมวัน',
+        'ป้อมปราบศัตรูพ่าย', 'พระโขนง', 'มีนบุรี', 'ลาดกระบัง', 'ยานนาวา', 'สัมพันธวงศ์',
+        'พญาไท', 'ธนบุรี', 'บางกอกใหญ่', 'ห้วยขวาง', 'คลองสาน', 'ตลิ่งชัน', 'บางกอกน้อย',
+        'บางขุนเทียน', 'ภาษีเจริญ', 'หนองแขม', 'ราษฎร์บูรณะ', 'บางพลัด', 'ดินแดง',
+        'บึงกุ่ม', 'สาทร', 'บางซื่อ', 'จตุจักร', 'บางคอแหลม', 'ประเวศ', 'คลองเตย',
+        'สวนหลวง', 'จอมทอง', 'ดอนเมือง', 'ราชเทวี', 'ลาดพร้าว', 'วัฒนา', 'บางแค',
+        'หลักสี่', 'สายไหม', 'คันนายาว', 'สะพานสูง', 'วังทองหลาง', 'คลองสามวา',
+        'บางนา', 'ทวีวัฒนา', 'ทุ่งครุ', 'บางบอน'
+    ]
+    
+    bangkok_districts_en = [
+        'Phra Nakhon', 'Dusit', 'Nong Chok', 'Bang Rak', 'Bang Khen', 'Bang Kapi',
+        'Pathum Wan', 'Pom Prap Sattru Phai', 'Phra Khanong', 'Min Buri', 'Lat Krabang',
+        'Yan Nawa', 'Samphanthawong', 'Phaya Thai', 'Thon Buri', 'Bangkok Yai',
+        'Huai Khwang', 'Khlong San', 'Taling Chan', 'Bangkok Noi', 'Bang Khun Thian',
+        'Phasi Charoen', 'Nong Khaem', 'Rat Burana', 'Bang Phlat', 'Din Daeng',
+        'Bueng Kum', 'Sathon', 'Bang Sue', 'Chatuchak', 'Bang Kho Laem', 'Prawet',
+        'Khlong Toei', 'Suan Luang', 'Chom Thong', 'Don Mueang', 'Ratchathewi',
+        'Lat Phrao', 'Watthana', 'Bang Khae', 'Lak Si', 'Sai Mai', 'Khan Na Yao',
+        'Saphan Sung', 'Wang Thonglang', 'Khlong Sam Wa', 'Bang Na', 'Thawi Watthana',
+        'Thung Khru', 'Bang Bon'
+    ]
+    
+    # Filter features to only include Bangkok districts
+    if 'features' in bangkok_geojson:
+        bangkok_geojson['features'] = [
+            f for f in bangkok_geojson['features']
+            if f['properties'].get('amp_th') in bangkok_districts_th
+            or f['properties'].get('amp_en') in bangkok_districts_en
+        ]
+    
+    # Add GeoJSON layer with styling (only Bangkok districts)
     folium.GeoJson(
-        geojson_data,
+        bangkok_geojson,
         name='Bangkok Districts',
         style_function=lambda feature: {
             'fillColor': '#3186cc',
@@ -484,6 +567,310 @@ def create_map_5_population(geojson_data, population_df):
     return m
 
 
+def create_map_6_total_issues(geojson_data, complaints_df):
+    """
+    MAP 6: Total Issues by District
+    Shows total number of issues reported in each district.
+    Hover over district to see total issue count.
+    """
+    m = create_base_map(zoom_start=11)
+    
+    if geojson_data is None:
+        st.error("❌ GeoJSON file not found! Please add bangkok_districts.geojson")
+        return m
+    
+    if complaints_df.empty:
+        st.warning("⚠️ No complaints data available. Please run the AI Classifier first.")
+        return m
+    
+    # Count total issues by district
+    if 'district' not in complaints_df.columns:
+        st.warning("⚠️ 'district' column not found in complaints data")
+        return m
+    
+    issue_counts = complaints_df['district'].value_counts().to_dict()
+    total_issues = len(complaints_df)
+    
+    # Calculate max for color scaling
+    max_issues = max(issue_counts.values()) if issue_counts else 1
+    
+    # Color scale function - Red gradient (more issues = darker red)
+    def get_color(issue_count):
+        if issue_count == 0:
+            return '#e0e0e0'  # Light gray for no issues
+        elif issue_count < max_issues * 0.2:
+            return '#ffcdd2'  # Very light red
+        elif issue_count < max_issues * 0.4:
+            return '#ef9a9a'  # Light red
+        elif issue_count < max_issues * 0.6:
+            return '#e57373'  # Medium red
+        elif issue_count < max_issues * 0.8:
+            return '#ef5350'  # Dark red
+        else:
+            return '#c62828'  # Very dark red (critical)
+    
+    # Style function
+    def style_function(feature):
+        district_name_th = feature['properties'].get('amp_th', '')
+        issue_count = issue_counts.get(district_name_th, 0)
+        
+        return {
+            'fillColor': get_color(issue_count),
+            'color': '#424242',
+            'weight': 2,
+            'fillOpacity': 0.75,
+        }
+    
+    # Highlight function
+    def highlight_function(feature):
+        return {
+            'fillColor': '#ffd54f',  # Yellow highlight
+            'color': '#000000',
+            'weight': 3,
+            'fillOpacity': 0.9,
+        }
+    
+    # Add issue counts to features
+    def add_issues_to_feature(feature):
+        district_name_th = feature['properties'].get('amp_th', '')
+        issue_count = issue_counts.get(district_name_th, 0)
+        
+        # Calculate percentage
+        percentage = (issue_count / total_issues * 100) if total_issues > 0 else 0
+        
+        feature['properties']['total_issues'] = issue_count
+        feature['properties']['percentage'] = f"{percentage:.1f}%"
+        return feature
+    
+    # Update GeoJSON with issue counts
+    updated_geojson = geojson_data.copy()
+    updated_geojson['features'] = [add_issues_to_feature(f) for f in updated_geojson['features']]
+    
+    # Add GeoJSON layer
+    folium.GeoJson(
+        updated_geojson,
+        name='Total Issues by District',
+        style_function=style_function,
+        highlight_function=highlight_function,
+        tooltip=folium.GeoJsonTooltip(
+            fields=['amp_en', 'amp_th', 'total_issues', 'percentage'],
+            aliases=['District (EN):', 'District (TH):', '📋 Total Issues:', '📊 Percentage:'],
+            style="background-color: white; color: #333; font-family: arial; font-size: 13px; padding: 12px; font-weight: 500;"
+        )
+    ).add_to(m)
+    
+    # Add legend
+    legend_html = f"""
+    <div style="position: fixed; bottom: 50px; left: 50px; width: 220px; 
+                background-color: white; border: 2px solid #424242; z-index: 9999; 
+                padding: 12px; font-size: 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 15px; color: #c62828;">📋 Total Issues</p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(0)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>No Issues</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_issues*0.15)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>Very Low</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_issues*0.35)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>Low</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_issues*0.55)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>Medium</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_issues*0.75)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>High</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_issues)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>Critical</span>
+        </p>
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">
+            <strong>Total:</strong> {total_issues:,} issues<br>
+            <strong>Highest:</strong> {max_issues} issues
+        </p>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(legend_html))
+    
+    return m
+
+
+def create_map_7_classification_detail(geojson_data, complaints_df):
+    """
+    MAP 7: Issue Classification by District
+    Shows detailed breakdown of classifications (Sufficient, Not Sufficient, API Error, Uncertain)
+    Hover over district to see detailed classification counts.
+    """
+    m = create_base_map(zoom_start=11)
+    
+    if geojson_data is None:
+        st.error("❌ GeoJSON file not found! Please add bangkok_districts.geojson")
+        return m
+    
+    if complaints_df.empty:
+        st.warning("⚠️ No complaints data available. Please run the AI Classifier first.")
+        return m
+    
+    # Check required columns
+    if 'district' not in complaints_df.columns or 'llm_label' not in complaints_df.columns:
+        st.warning("⚠️ Required columns not found in complaints data")
+        return m
+    
+    # Group by district and classification
+    district_classification = complaints_df.groupby(['district', 'llm_label']).size().unstack(fill_value=0)
+    
+    # Calculate severity score for coloring
+    # Not Sufficient and API Error are high priority
+    if 'Not Sufficient' in district_classification.columns:
+        district_classification['severity_score'] = (
+            district_classification.get('Not Sufficient', 0) * 3 +
+            district_classification.get('API Error', 0) * 2.5 +
+            district_classification.get('Uncertain (has partial evidence)', 0) * 1.5 +
+            district_classification.get('Sufficient', 0) * 0.5
+        )
+    else:
+        district_classification['severity_score'] = 0
+    
+    max_severity = district_classification['severity_score'].max() if len(district_classification) > 0 else 1
+    
+    # Color scale based on severity (mix of issues)
+    def get_color(severity):
+        if severity == 0:
+            return '#e8f5e9'  # Very light green (no issues)
+        elif severity < max_severity * 0.2:
+            return '#fff9c4'  # Light yellow
+        elif severity < max_severity * 0.4:
+            return '#ffeb3b'  # Yellow
+        elif severity < max_severity * 0.6:
+            return '#ff9800'  # Orange
+        elif severity < max_severity * 0.8:
+            return '#ff5722'  # Deep orange
+        else:
+            return '#d32f2f'  # Red (critical)
+    
+    # Style function
+    def style_function(feature):
+        district_name_th = feature['properties'].get('amp_th', '')
+        
+        if district_name_th in district_classification.index:
+            severity = district_classification.loc[district_name_th, 'severity_score']
+        else:
+            severity = 0
+        
+        return {
+            'fillColor': get_color(severity),
+            'color': '#424242',
+            'weight': 2,
+            'fillOpacity': 0.75,
+        }
+    
+    # Highlight function
+    def highlight_function(feature):
+        return {
+            'fillColor': '#64b5f6',  # Light blue highlight
+            'color': '#000000',
+            'weight': 3,
+            'fillOpacity': 0.9,
+        }
+    
+    # Add classification details to features
+    def add_classification_to_feature(feature):
+        district_name_th = feature['properties'].get('amp_th', '')
+        
+        if district_name_th in district_classification.index:
+            stats = district_classification.loc[district_name_th]
+            feature['properties']['sufficient'] = int(stats.get('Sufficient', 0))
+            feature['properties']['not_sufficient'] = int(stats.get('Not Sufficient', 0))
+            feature['properties']['api_error'] = int(stats.get('API Error', 0))
+            feature['properties']['uncertain'] = int(stats.get('Uncertain (has partial evidence)', 0))
+            feature['properties']['total'] = int(stats.sum() - stats.get('severity_score', 0))
+        else:
+            feature['properties']['sufficient'] = 0
+            feature['properties']['not_sufficient'] = 0
+            feature['properties']['api_error'] = 0
+            feature['properties']['uncertain'] = 0
+            feature['properties']['total'] = 0
+        
+        return feature
+    
+    # Update GeoJSON with classification data
+    updated_geojson = geojson_data.copy()
+    updated_geojson['features'] = [add_classification_to_feature(f) for f in updated_geojson['features']]
+    
+    # Add GeoJSON layer
+    folium.GeoJson(
+        updated_geojson,
+        name='Issue Classification',
+        style_function=style_function,
+        highlight_function=highlight_function,
+        tooltip=folium.GeoJsonTooltip(
+            fields=['amp_en', 'amp_th', 'total', 'sufficient', 'not_sufficient', 'uncertain', 'api_error'],
+            aliases=[
+                'District (EN):', 
+                'District (TH):', 
+                '📊 Total Issues:', 
+                '✅ Sufficient:', 
+                '❌ Not Sufficient:', 
+                '⚠️ Uncertain:', 
+                '🔴 API Error:'
+            ],
+            style="background-color: white; color: #333; font-family: arial; font-size: 13px; padding: 12px; font-weight: 500;"
+        )
+    ).add_to(m)
+    
+    # Add detailed legend
+    legend_html = f"""
+    <div style="position: fixed; bottom: 50px; left: 50px; width: 240px; 
+                background-color: white; border: 2px solid #424242; z-index: 9999; 
+                padding: 12px; font-size: 13px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 15px; color: #d32f2f;">🎯 Issue Severity</p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(0)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>No Issues</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_severity*0.15)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>Very Low</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_severity*0.35)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>Low</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_severity*0.55)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>Moderate</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_severity*0.75)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>High</span>
+        </p>
+        <p style="margin: 4px 0; display: flex; align-items: center;">
+            <span style="background-color: {get_color(max_severity)}; padding: 8px 12px; margin-right: 8px; border-radius: 4px;">█</span> 
+            <span>Critical</span>
+        </p>
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="margin: 6px 0 2px 0; font-size: 12px; font-weight: bold; color: #555;">Classification Legend:</p>
+        <p style="margin: 2px 0; font-size: 11px;">✅ <strong>Sufficient</strong> - Resolved</p>
+        <p style="margin: 2px 0; font-size: 11px;">❌ <strong>Not Sufficient</strong> - Need action</p>
+        <p style="margin: 2px 0; font-size: 11px;">⚠️ <strong>Uncertain</strong> - Partial info</p>
+        <p style="margin: 2px 0; font-size: 11px;">🔴 <strong>API Error</strong> - Failed to classify</p>
+        <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="margin: 4px 0 0 0; font-size: 11px; color: #666; font-style: italic;">
+            Severity = Not Suff.×3 + API Err.×2.5 + Uncertain×1.5 + Sufficient×0.5
+        </p>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(legend_html))
+    
+    return m
+
+
 # ============================================================================
 # MAIN APPLICATION
 # ============================================================================
@@ -493,12 +880,13 @@ def main():
     
     # Header
     st.markdown('<p class="main-header">🗺️ Bangkok Emergency Services Map Dashboard</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Interactive geospatial visualization of hospitals, fire stations, incidents, and population</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Interactive geospatial visualization of hospitals, fire stations, incidents, population, and complaint analysis</p>', unsafe_allow_html=True)
     
     # Load data
     with st.spinner("Loading data..."):
         store = load_data()
         geojson_data = load_geojson()
+        complaints_df = load_complaints_data()
         
         hospitals_df = store.get_hospitals_pandas()
         fire_stations_df = store.get_fire_stations_pandas()
@@ -515,7 +903,9 @@ def main():
         "2. Hospital Locations",
         "3. Fire Station Locations",
         "4. Fire Incidents by District",
-        "5. Population by District"
+        "5. Population by District",
+        "6. Total Issues by District",
+        "7. Issue Classification by District"
     ]
     
     selected_map = st.sidebar.selectbox(
@@ -533,6 +923,15 @@ def main():
     st.sidebar.metric("🔥 Fire Incidents", len(fire_disaster_df))
     st.sidebar.metric("👥 Total Population", f"{population_df['TOTAL'].sum():,}")
     
+    # Add complaints metrics
+    if not complaints_df.empty:
+        st.sidebar.metric("📋 Classified Issues", len(complaints_df))
+        if 'llm_label' in complaints_df.columns:
+            sufficient_count = (complaints_df['llm_label'] == 'Sufficient').sum()
+            not_sufficient_count = (complaints_df['llm_label'] == 'Not Sufficient').sum()
+            st.sidebar.metric("✅ Sufficient", sufficient_count)
+            st.sidebar.metric("❌ Not Sufficient", not_sufficient_count)
+    
     st.sidebar.markdown("---")
     st.sidebar.info("""
     **💡 Tips:**
@@ -540,7 +939,62 @@ def main():
     - Click markers for full information
     - Use mouse wheel to zoom
     - Drag to pan the map
+    - Press 'R' to refresh and load new data
     """)
+    
+    # Bangkok District Name Mapping (Thai to English)
+    district_mapping = {
+        'พระนคร': 'Phra Nakhon',
+        'ดุสิต': 'Dusit',
+        'หนองจอก': 'Nong Chok',
+        'บางรัก': 'Bang Rak',
+        'บางเขน': 'Bang Khen',
+        'บางกะปิ': 'Bang Kapi',
+        'ปทุมวัน': 'Pathum Wan',
+        'ป้อมปราบศัตรูพ่าย': 'Pom Prap Sattru Phai',
+        'พระโขนง': 'Phra Khanong',
+        'มีนบุรี': 'Min Buri',
+        'ลาดกระบัง': 'Lat Krabang',
+        'ยานนาวา': 'Yan Nawa',
+        'สัมพันธวงศ์': 'Samphanthawong',
+        'พญาไท': 'Phaya Thai',
+        'ธนบุรี': 'Thon Buri',
+        'บางกอกใหญ่': 'Bangkok Yai',
+        'ห้วยขวาง': 'Huai Khwang',
+        'คลองสาน': 'Khlong San',
+        'ตลิ่งชัน': 'Taling Chan',
+        'บางกอกน้อย': 'Bangkok Noi',
+        'บางขุนเทียน': 'Bang Khun Thian',
+        'ภาษีเจริญ': 'Phasi Charoen',
+        'หนองแขม': 'Nong Khaem',
+        'ราษฎร์บูรณะ': 'Rat Burana',
+        'บางพลัด': 'Bang Phlat',
+        'ดินแดง': 'Din Daeng',
+        'บึงกุ่ม': 'Bueng Kum',
+        'สาทร': 'Sathon',
+        'บางซื่อ': 'Bang Sue',
+        'จตุจักร': 'Chatuchak',
+        'บางคอแหลม': 'Bang Kho Laem',
+        'ประเวศ': 'Prawet',
+        'คลองเตย': 'Khlong Toei',
+        'สวนหลวง': 'Suan Luang',
+        'จอมทอง': 'Chom Thong',
+        'ดอนเมือง': 'Don Mueang',
+        'ราชเทวี': 'Ratchathewi',
+        'ลาดพร้าว': 'Lat Phrao',
+        'วัฒนา': 'Watthana',
+        'บางแค': 'Bang Khae',
+        'หลักสี่': 'Lak Si',
+        'สายไหม': 'Sai Mai',
+        'คันนายาว': 'Khan Na Yao',
+        'สะพานสูง': 'Saphan Sung',
+        'วังทองหลาง': 'Wang Thonglang',
+        'คลองสามวา': 'Khlong Sam Wa',
+        'บางนา': 'Bang Na',
+        'ทวีวัฒนา': 'Thawi Watthana',
+        'ทุ่งครุ': 'Thung Khru',
+        'บางบอน': 'Bang Bon'
+    }
     
     # Main content area
     if selected_map == map_options[0]:
@@ -587,17 +1041,23 @@ def main():
         # Map 4: Fire Incidents by District
         st.markdown('<div class="map-description">', unsafe_allow_html=True)
         st.markdown("### 🔥 Map 4: Fire Incidents by District")
-        st.markdown(f"Showing fire incident distribution across Bangkok districts. Darker colors indicate more incidents. Total incidents: **{len(fire_disaster_df)}**")
+        
+        # Filter for Bangkok only
+        bangkok_incidents = fire_disaster_df[fire_disaster_df['Province'] == 'กรุงเทพมหานคร'].copy() if 'Province' in fire_disaster_df.columns else fire_disaster_df
+        
+        st.markdown(f"Showing fire incident distribution across Bangkok districts. Darker colors indicate more incidents. Total Bangkok incidents: **{len(bangkok_incidents)}** (out of {len(fire_disaster_df)} total)")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Show top districts
-        if 'District' in fire_disaster_df.columns:
-            top_districts = fire_disaster_df['District'].value_counts().head(5)
-            st.markdown("**Top 5 Districts by Incidents:**")
-            for district, count in top_districts.items():
-                st.markdown(f"- {district}: **{count}** incidents")
+        # Show top Bangkok districts with bilingual names
+        if 'District' in bangkok_incidents.columns:
+            top_districts = bangkok_incidents['District'].value_counts().head(5)
+            st.markdown("**Top 5 Bangkok Districts by Incidents:**")
+            for district_th, count in top_districts.items():
+                district_en = district_mapping.get(district_th, district_th)
+                st.markdown(f"- {district_th} ({district_en}): **{count}** incidents")
         
-        map_obj = create_map_4_fire_incidents(geojson_data, fire_disaster_df)
+        # Use Bangkok-filtered data for the map
+        map_obj = create_map_4_fire_incidents(geojson_data, bangkok_incidents)
         st_folium(map_obj, width=1200, height=600)
         
     elif selected_map == map_options[4]:
@@ -626,21 +1086,86 @@ def main():
         map_obj = create_map_5_population(geojson_data, population_df)
         st_folium(map_obj, width=1200, height=600)
     
-    # Footer
-    st.markdown("---")
-    st.markdown("### 📝 Notes")
-    st.info("""
-    **About the Maps:**
-    - Maps 1, 4, and 5 require a GeoJSON file for district boundaries
-    - Maps 2 and 3 require geocoded coordinates (run geocode_locations.py)
-    - All maps are interactive - zoom, pan, and click for more information
+    elif selected_map == map_options[5]:
+        # Map 6: Total Issues by District
+        st.markdown('<div class="map-description">', unsafe_allow_html=True)
+        st.markdown("### 📋 Map 6: Total Issues by District")
+        
+        if complaints_df.empty:
+            st.warning("⚠️ **No complaints data available.** Please run the AI Classifier at http://localhost:8502 first to generate classified data.")
+            st.info("After running the classifier, the data will be automatically saved to `/shared_data/labeled_output.csv`. Just press **R** or refresh your browser to load the new data!")
+        else:
+            total_complaints = len(complaints_df)
+            st.markdown(f"Showing the distribution of **{total_complaints:,}** reported issues across Bangkok districts. Hover over districts to see total issue counts.")
+            st.info("🔄 **After classifying new data in the AI Classifier, press 'R' or refresh your browser to update this map.**")
+            
+            # Show top 5 districts
+            if 'district' in complaints_df.columns:
+                top_issue_districts = complaints_df['district'].value_counts().head(5)
+                st.markdown("**Top 5 Districts by Total Issues:**")
+                col1, col2 = st.columns([3, 2])
+                with col1:
+                    for district_th, count in top_issue_districts.items():
+                        district_en = district_mapping.get(district_th, district_th)
+                        percentage = (count / total_complaints * 100)
+                        st.markdown(f"- **{district_th}** ({district_en}): {count:,} issues ({percentage:.1f}%)")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        map_obj = create_map_6_total_issues(geojson_data, complaints_df)
+        st_folium(map_obj, width=1200, height=600)
     
-    **Data Sources:**
-    - Hospital data: bangkok_hospitals.csv
-    - Fire station data: fire_stations.csv
-    - Fire incident data: fire_disaster_data.csv
-    - Population data: population.csv
-    """)
+    elif selected_map == map_options[6]:
+        # Map 7: Issue Classification by District
+        st.markdown('<div class="map-description">', unsafe_allow_html=True)
+        st.markdown("### 🎯 Map 7: Issue Classification by District")
+        
+        if complaints_df.empty:
+            st.warning("⚠️ **No complaints data available.** Please run the AI Classifier at http://localhost:8502 first to generate classified data.")
+            st.info("After running the classifier, the data will be automatically saved to `/shared_data/labeled_output.csv`. Just press **R** or refresh your browser to load the new data!")
+        else:
+            total_complaints = len(complaints_df)
+            st.markdown(f"Showing detailed classification breakdown for **{total_complaints:,}** issues. Hover over districts to see: ✅ Sufficient, ❌ Not Sufficient, ⚠️ Uncertain, and 🔴 API Error counts.")
+            st.info("🔄 **After classifying new data in the AI Classifier, press 'R' or refresh your browser to update this map.**")
+            
+            # Show overall classification statistics
+            if 'llm_label' in complaints_df.columns:
+                st.markdown("**Overall Classification Summary:**")
+                col1, col2, col3, col4 = st.columns(4)
+                
+                label_counts = complaints_df['llm_label'].value_counts()
+                
+                with col1:
+                    sufficient = label_counts.get('Sufficient', 0)
+                    st.metric("✅ Sufficient", f"{sufficient:,}", 
+                             delta=f"{(sufficient/total_complaints*100):.1f}%", delta_color="off")
+                
+                with col2:
+                    not_sufficient = label_counts.get('Not Sufficient', 0)
+                    st.metric("❌ Not Sufficient", f"{not_sufficient:,}", 
+                             delta=f"{(not_sufficient/total_complaints*100):.1f}%", delta_color="off")
+                
+                with col3:
+                    uncertain = label_counts.get('Uncertain (has partial evidence)', 0)
+                    st.metric("⚠️ Uncertain", f"{uncertain:,}", 
+                             delta=f"{(uncertain/total_complaints*100):.1f}%", delta_color="off")
+                
+                with col4:
+                    api_error = label_counts.get('API Error', 0)
+                    st.metric("🔴 API Error", f"{api_error:,}", 
+                             delta=f"{(api_error/total_complaints*100):.1f}%", delta_color="off")
+                
+                # Show top problem districts
+                st.markdown("**Top 5 Districts with Most 'Not Sufficient' Issues:**")
+                not_sufficient_by_district = complaints_df[complaints_df['llm_label'] == 'Not Sufficient']['district'].value_counts().head(5)
+                for district_th, count in not_sufficient_by_district.items():
+                    district_en = district_mapping.get(district_th, district_th)
+                    st.markdown(f"- **{district_th}** ({district_en}): {count} unresolved issues")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        map_obj = create_map_7_classification_detail(geojson_data, complaints_df)
+        st_folium(map_obj, width=1200, height=600)
 
 
 # ============================================================================

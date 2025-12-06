@@ -1,3 +1,5 @@
+#import DE_AI.streamlit_ui.config as config
+
 import os
 import streamlit as st
 from pyspark.sql import SparkSession
@@ -12,7 +14,7 @@ import sys
 # Configs
 # -----------------------------------------------------------------------------
 # Max rows to materialize into pandas by default (safe)
-MAX_ROWS = int(os.environ.get("TRAFFY_UI_MAX_ROWS", 1000))
+MAX_ROWS = int(os.environ.get("TRAFFY_UI_MAX_ROWS", 30000))
 
 # Allow user to force a capped load if they want
 FORCE_LIMIT_ENV = bool(os.environ.get("TRAFFY_UI_FORCE_LIMIT", False))
@@ -22,7 +24,7 @@ SPARK_DRIVER_MEM = os.environ.get("SPARK_DRIVER_MEMORY", "4g")
 SPARK_EXECUTOR_MEM = os.environ.get("SPARK_EXECUTOR_MEMORY", "4g")
 API_KEY = os.environ.get("GEMINI_API_KEY", None)
 
-DATA_PATH = "./DE_AI/parquet_data/traffy/complaints.parquet"
+DATA_PATH = "./parquet_data/traffy/complaints.parquet"
 
 # -----------------------------------------------------------------------------
 # 1. Connect to Spark (with some memory config)
@@ -109,6 +111,42 @@ def update_parquet_with_labels(labeled_df, data_path):
     except Exception as e:
         st.error(f"Failed to update parquet file: {str(e)}")
         return False
+
+# -----------------------------------------------------------------------------
+# Helper function to save to shared_data for map visualization
+# -----------------------------------------------------------------------------
+def save_to_shared_data(labeled_df):
+    """
+    Save classified data to shared_data folder for map visualization.
+    Tries multiple possible paths (Windows, Docker, relative).
+    """
+    # Define possible save paths
+    save_paths = [
+        r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_AI\shared_data\labeled_output.csv",  # Windows absolute
+        "./shared_data/labeled_output.csv",  # Relative (current directory)
+        "../shared_data/labeled_output.csv",  # Parent directory
+        "/shared_data/labeled_output.csv",  # Docker volume
+        "./DE_AI/shared_data/labeled_output.csv",  # From root
+    ]
+    
+    # Try to save to the first valid path
+    saved = False
+    successful_path = None
+    
+    for save_path in save_paths:
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            
+            # Save the CSV
+            labeled_df.to_csv(save_path, index=False)
+            saved = True
+            successful_path = save_path
+            break  # Stop after first successful save
+        except Exception as e:
+            continue  # Try next path
+    
+    return saved, successful_path
 
 # -----------------------------------------------------------------------------
 # 2. Streamlit UI
@@ -351,13 +389,27 @@ if "filtered_df" in st.session_state:
             st.session_state["labeled_df"] = labeled_df
             st.session_state["classification_complete"] = True
             
-            # Save results back to parquet
-            with st.spinner("Saving classification results to database..."):
-                if update_parquet_with_labels(labeled_df, DATA_PATH):
+            # Save results back to parquet and shared_data
+            with st.spinner("Saving classification results..."):
+                # Save to parquet database
+                parquet_saved = update_parquet_with_labels(labeled_df, DATA_PATH)
+                
+                if parquet_saved:
                     st.success("✅ Classification results saved to parquet database!")
                     st.info("Future queries will automatically use these cached results.")
                 else:
-                    st.warning("⚠️ Could not save results to database, but you can still download them.")
+                    st.warning("⚠️ Could not save results to parquet database.")
+                
+                # Save to shared_data for map visualization
+                shared_saved, shared_path = save_to_shared_data(labeled_df)
+                
+                if shared_saved:
+                    st.success(f"💾 Results saved to shared_data for map visualization!")
+                    st.info(f"📍 File location: {shared_path}")
+                    st.info("🗺️ Go to Map Visualization (http://localhost:8501) and press 'R' to see the updated data!")
+                else:
+                    st.warning("⚠️ Could not save to shared_data. Map visualization may not update automatically.")
+                    st.info("💡 You can still download the CSV manually using the button below.")
 
             # Force a rerun to update the UI
             st.rerun()

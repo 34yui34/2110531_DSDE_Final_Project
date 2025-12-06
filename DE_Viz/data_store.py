@@ -42,15 +42,15 @@ class DataStore:
     # Not using DATA_DIR since we have full paths
     DATA_DIR = None
     
-    # Full paths to your files - UPDATED FOR YOUR WINDOWS SYSTEM
-    HOSPITALS_FILE = r"dataset/webscraping/output_csv_file/bangkok_hospitals_geocoded.csv"
-    HOSPITALS_FALLBACK = r"dataset/webscraping/input_csv_file/bangkok_hospitals.csv"
+    # Full paths to your files - FIXED PATHS (removed duplicate dataset/DE_Viz/)
+    HOSPITALS_FILE = "output_csv_file/bangkok_hospitals_geocoded.csv"
+    HOSPITALS_FALLBACK = "input_csv_file/bangkok_hospitals.csv"
     
-    FIRE_STATIONS_FILE = r"dataset/webscraping/output_csv_file/fire_stations_geocoded.csv"
-    FIRE_STATIONS_FALLBACK = r"dataset/webscraping/input_csv_file/fire_stations.csv"
+    FIRE_STATIONS_FILE = "output_csv_file/fire_stations_geocoded.csv"
+    FIRE_STATIONS_FALLBACK = "input_csv_file/fire_stations.csv"
     
-    FIRE_DISASTER_FILE = r"dataset/webscraping/input_csv_file/fire_disaster_data.csv"
-    POPULATION_FILE = r"dataset/webscraping/input_csv_file/population.csv"
+    FIRE_DISASTER_FILE = "input_csv_file/fire_disaster_data.csv"
+    POPULATION_FILE = "input_csv_file/population.csv"
     
     def __new__(cls):
         """Singleton pattern - only one instance of DataStore."""
@@ -89,11 +89,12 @@ class DataStore:
         """
         # Check if primary file exists
         if os.path.exists(filename):
+            print(f"✅ Found: {filename}")
             return filename
         
         # Try fallback if provided
         if fallback and os.path.exists(fallback):
-            print(f"ℹ️  Primary file not found, using fallback: {os.path.basename(fallback)}")
+            print(f"ℹ️  Primary file not found, using fallback: {fallback}")
             return fallback
         
         # Return primary even if doesn't exist (will show error when trying to load)
@@ -117,6 +118,7 @@ class DataStore:
             return
         
         print("\n🔄 Loading all datasets into PySpark...")
+        print(f"📁 Current working directory: {os.getcwd()}\n")
         
         # Load hospitals
         hospitals_path = self._get_file_path(self.HOSPITALS_FILE, self.HOSPITALS_FALLBACK)
