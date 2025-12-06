@@ -1,4 +1,6 @@
-FROM 34yui34/dsde-final-proj-container:latest
+ARG TARGETARCH
+
+FROM 34yui34/dsde-final-proj-container:latest-${TARGETARCH}
 
 ENV DEBIAN_FRONTEND=noninteractive
 
