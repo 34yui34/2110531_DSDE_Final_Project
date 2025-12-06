@@ -932,15 +932,6 @@ def main():
             st.sidebar.metric("✅ Sufficient", sufficient_count)
             st.sidebar.metric("❌ Not Sufficient", not_sufficient_count)
     
-    st.sidebar.markdown("---")
-    st.sidebar.info("""
-    **💡 Tips:**
-    - Hover over markers/districts for details
-    - Click markers for full information
-    - Use mouse wheel to zoom
-    - Drag to pan the map
-    - Press 'R' to refresh and load new data
-    """)
     
     # Bangkok District Name Mapping (Thai to English)
     district_mapping = {
