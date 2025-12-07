@@ -14,7 +14,7 @@ import sys
 # Configs
 # -----------------------------------------------------------------------------
 # Max rows to materialize into pandas by default (safe)
-MAX_ROWS = int(os.environ.get("TRAFFY_UI_MAX_ROWS", 30000))
+MAX_ROWS = int(os.environ.get("TRAFFY_UI_MAX_ROWS", 1000))
 
 # Allow user to force a capped load if they want
 FORCE_LIMIT_ENV = bool(os.environ.get("TRAFFY_UI_FORCE_LIMIT", False))
@@ -115,18 +115,24 @@ def update_parquet_with_labels(labeled_df, data_path):
 # -----------------------------------------------------------------------------
 # Helper function to save to shared_data for map visualization
 # -----------------------------------------------------------------------------
-def save_to_shared_data(labeled_df):
+def save_to_shared_data(labeled_df, start_date, end_date):
     """
     Save classified data to shared_data folder for map visualization.
     Tries multiple possible paths (Windows, Docker, relative).
+    Filename includes the date range: labeled_output_{start}_{end}.csv
     """
+    # Format dates as MMDDYYYY
+    start_str = start_date.strftime("%m%d%Y")
+    end_str = end_date.strftime("%m%d%Y")
+    filename = f"labeled_output_{start_str}_{end_str}.csv"
+    
     # Define possible save paths
     save_paths = [
-        r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_AI\shared_data\labeled_output.csv",  # Windows absolute
-        "./shared_data/labeled_output.csv",  # Relative (current directory)
-        "../shared_data/labeled_output.csv",  # Parent directory
-        "/shared_data/labeled_output.csv",  # Docker volume
-        "./DE_AI/shared_data/labeled_output.csv",  # From root
+        rf"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_AI\shared_data\{filename}",  # Windows absolute
+        f"./shared_data/{filename}",  # Relative (current directory)
+        f"../shared_data/{filename}",  # Parent directory
+        f"/shared_data/{filename}",  # Docker volume
+        f"./DE_AI/shared_data/{filename}",  # From root
     ]
     
     # Try to save to the first valid path
@@ -169,6 +175,10 @@ with col2:
 if start_dt > end_dt:
     st.error("Start datetime must be before end datetime")
     st.stop()
+
+# Store the selected dates in session state for later use
+st.session_state["start_dt"] = start_dt
+st.session_state["end_dt"] = end_dt
 
 # -----------------------------------------------------------------------------
 # 3. Run Spark query
@@ -400,8 +410,12 @@ if "filtered_df" in st.session_state:
                 else:
                     st.warning("⚠️ Could not save results to parquet database.")
                 
-                # Save to shared_data for map visualization
-                shared_saved, shared_path = save_to_shared_data(labeled_df)
+                # Save to shared_data for map visualization with date-based filename
+                # Get the dates from session state
+                start_date = st.session_state.get("start_dt", datetime.now())
+                end_date = st.session_state.get("end_dt", datetime.now())
+                
+                shared_saved, shared_path = save_to_shared_data(labeled_df, start_date, end_date)
                 
                 if shared_saved:
                     st.success(f"💾 Results saved to shared_data for map visualization!")
@@ -425,12 +439,19 @@ if "filtered_df" in st.session_state:
         st.subheader("Classification Results")
         st.dataframe(labeled_df)
 
+        # Generate filename with date range for download
+        start_date = st.session_state.get("start_dt", datetime.now())
+        end_date = st.session_state.get("end_dt", datetime.now())
+        start_str = start_date.strftime("%m%d%Y")
+        end_str = end_date.strftime("%m%d%Y")
+        download_filename = f"labeled_output_{start_str}_{end_str}.csv"
+
         # Offer download
         csv_data = labeled_df.to_csv(index=False)
         st.download_button(
             label="📥 Download labeled CSV",
             data=csv_data,
-            file_name="labeled_output.csv",
+            file_name=download_filename,
             mime="text/csv"
         )
         

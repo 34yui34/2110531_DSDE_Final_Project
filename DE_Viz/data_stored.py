@@ -26,7 +26,7 @@ class DataStore:
             "./input_csv_file",  # Explicit current
             "../input_csv_file",  # Parent directory
             "../../input_csv_file",  # Two levels up
-            r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_Viz\input_csv_file",  # Absolute path
+            r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_Viz\webscraping\input_csv_file",  # Absolute path
         ]
     
     def _find_file(self, filename):

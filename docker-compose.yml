@@ -9,8 +9,10 @@ services:
       - "8501:8501"
     volumes:
       - ./DE_Viz:/DE_Viz
-      - ./dataset:/DE_Viz/dataset
+      #- ./dataset:/DE_Viz/dataset
       - ./DE_AI/shared_data:/shared_data  # ✨ ADD THIS LINE
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     command: streamlit run map_visualization.py
   
   streamlit-de-ai:
@@ -23,5 +25,7 @@ services:
       - ./DE_AI:/DE_AI
       - ./dataset:/DE_AI/dataset
       - ./shared_data:/shared_data  # ✨ ADD THIS LINE
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     command: >
       bash -c "python bootstrap_spark/bootstrap_spark.py && streamlit run streamlit_ui/streamlit_app.py"

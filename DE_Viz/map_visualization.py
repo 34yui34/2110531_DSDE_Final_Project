@@ -120,13 +120,74 @@ def load_geojson():
     return None
 
 
-@st.cache_data
-def load_complaints_data():
+def get_available_complaint_files():
+    """
+    Get list of all available complaint CSV files in shared_data directory.
+    Returns list of tuples: (display_name, file_path)
+    """
+    possible_base_paths = [
+        "../DE_AI/shared_data/",
+        "./shared_data/",
+        "/shared_data/",
+        r"C:\Users\SorapatPun\Desktop\VScode\DSDE Project\2110531_DSDE_Final_Project\DE_AI\shared_data\\",
+    ]
+    
+    available_files = []
+    
+    for base_path in possible_base_paths:
+        if os.path.exists(base_path):
+            # Find all CSV files in the directory
+            try:
+                csv_files = [f for f in os.listdir(base_path) if f.endswith('.csv')]
+                
+                for csv_file in csv_files:
+                    full_path = os.path.join(base_path, csv_file)
+                    # Get file modification time for display
+                    mod_time = os.path.getmtime(full_path)
+                    mod_time_str = pd.Timestamp.fromtimestamp(mod_time).strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # Create display name with timestamp
+                    display_name = f"{csv_file} (Modified: {mod_time_str})"
+                    available_files.append((display_name, full_path, mod_time))
+            except Exception as e:
+                print(f"Error reading directory {base_path}: {e}")
+                continue
+            
+            if available_files:
+                break  # Found files, stop searching
+    
+    # Sort by modification time (newest first)
+    available_files.sort(key=lambda x: x[2], reverse=True)
+    
+    return [(name, path) for name, path, _ in available_files]
+
+
+def load_complaints_data(file_path=None):
     """
     Load classified complaints data from CSV file.
-    This data comes from the Gemini AI classifier (streamlit_app.py).
+    This function does NOT cache, so it always reads the latest file.
+    
+    Args:
+        file_path: Specific path to CSV file. If None, uses default search.
     """
-    # Possible paths for the complaints data
+    # If specific path provided, use it
+    if file_path:
+        if os.path.exists(file_path):
+            print(f"✅ Loading complaints data from: {file_path}")
+            try:
+                df = pd.read_csv(file_path)
+                # Filter for Bangkok only
+                if 'province' in df.columns:
+                    df = df[df['province'] == 'กรุงเทพมหานคร'].copy()
+                return df
+            except Exception as e:
+                print(f"❌ Error loading {file_path}: {e}")
+                return pd.DataFrame()
+        else:
+            print(f"❌ File not found: {file_path}")
+            return pd.DataFrame()
+    
+    # Original default search logic
     possible_paths = [
         "labeled_output.csv",  # Current directory
         "../DE_AI/shared_data/labeled_output.csv",  # From DE_Viz to DE_AI/shared_data
@@ -886,7 +947,9 @@ def main():
     with st.spinner("Loading data..."):
         store = load_data()
         geojson_data = load_geojson()
-        complaints_df = load_complaints_data()
+        
+        # Get available complaint files
+        available_files = get_available_complaint_files()
         
         hospitals_df = store.get_hospitals_pandas()
         fire_stations_df = store.get_fire_stations_pandas()
@@ -895,9 +958,49 @@ def main():
     
     # Sidebar
     st.sidebar.title("🗺️ Map Selection")
+    
+    # ========================================================================
+    # NEW: File selector in sidebar
+    # ========================================================================
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📁 Data Source Selection")
+    
+    selected_file_path = None
+    if available_files:
+        st.sidebar.success(f"✅ Found {len(available_files)} CSV file(s)")
+        
+        file_options = ["Default (latest labeled_output.csv)"] + [name for name, _ in available_files]
+        file_paths = [None] + [path for _, path in available_files]
+        
+        selected_index = st.sidebar.selectbox(
+            "Select Complaint Data File:",
+            range(len(file_options)),
+            format_func=lambda x: file_options[x],
+            key="file_selector"
+        )
+        
+        selected_file_path = file_paths[selected_index]
+        
+        if selected_file_path:
+            st.sidebar.info(f"📄 Using: {os.path.basename(selected_file_path)}")
+        else:
+            st.sidebar.info("📄 Using: Default search paths")
+    else:
+        st.sidebar.warning("⚠️ No CSV files found in shared_data")
+    
+    # Add refresh button
+    if st.sidebar.button("🔄 Refresh File List", key="refresh_files"):
+        st.rerun()
+    
+    # Load complaints with selected file
+    complaints_df = load_complaints_data(selected_file_path)
+    
+    st.sidebar.markdown("---")
     st.sidebar.markdown("Choose a map to visualize:")
     
+    # ========================================================================
     # Map dropdown
+    # ========================================================================
     map_options = [
         "1. Bangkok Districts (Boundaries)",
         "2. Hospital Locations",
@@ -1083,12 +1186,18 @@ def main():
         st.markdown("### 📋 Map 6: Total Issues by District")
         
         if complaints_df.empty:
-            st.warning("⚠️ **No complaints data available.** Please run the AI Classifier at http://localhost:8502 first to generate classified data.")
-            st.info("After running the classifier, the data will be automatically saved to `/shared_data/labeled_output.csv`. Just press **R** or refresh your browser to load the new data!")
+            st.warning("⚠️ **No complaints data available.** Please run the AI Classifier to generate classified data.")
+            st.info("💡 **Tip:** Use the file selector in the sidebar to choose a different CSV file, or generate new data with the AI Classifier.")
         else:
             total_complaints = len(complaints_df)
+            
+            # Show which file is being used
+            if selected_file_path:
+                st.info(f"📂 **Currently viewing:** {os.path.basename(selected_file_path)}")
+            else:
+                st.info(f"📂 **Currently viewing:** Default (labeled_output.csv)")
+            
             st.markdown(f"Showing the distribution of **{total_complaints:,}** reported issues across Bangkok districts. Hover over districts to see total issue counts.")
-            st.info("🔄 **After classifying new data in the AI Classifier, press 'R' or refresh your browser to update this map.**")
             
             # Show top 5 districts
             if 'district' in complaints_df.columns:
@@ -1112,12 +1221,18 @@ def main():
         st.markdown("### 🎯 Map 7: Issue Classification by District")
         
         if complaints_df.empty:
-            st.warning("⚠️ **No complaints data available.** Please run the AI Classifier at http://localhost:8502 first to generate classified data.")
-            st.info("After running the classifier, the data will be automatically saved to `/shared_data/labeled_output.csv`. Just press **R** or refresh your browser to load the new data!")
+            st.warning("⚠️ **No complaints data available.** Please run the AI Classifier to generate classified data.")
+            st.info("💡 **Tip:** Use the file selector in the sidebar to choose a different CSV file, or generate new data with the AI Classifier.")
         else:
             total_complaints = len(complaints_df)
+            
+            # Show which file is being used
+            if selected_file_path:
+                st.info(f"📂 **Currently viewing:** {os.path.basename(selected_file_path)}")
+            else:
+                st.info(f"📂 **Currently viewing:** Default (labeled_output.csv)")
+            
             st.markdown(f"Showing detailed classification breakdown for **{total_complaints:,}** issues. Hover over districts to see: ✅ Sufficient, ❌ Not Sufficient, ⚠️ Uncertain, and 🔴 API Error counts.")
-            st.info("🔄 **After classifying new data in the AI Classifier, press 'R' or refresh your browser to update this map.**")
             
             # Show overall classification statistics
             if 'llm_label' in complaints_df.columns:
