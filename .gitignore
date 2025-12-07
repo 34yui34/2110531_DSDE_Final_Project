@@ -118,3 +118,4 @@ Thumbs.db
 parquet_data/
 dataset/
 debug.txt
+shared_data/

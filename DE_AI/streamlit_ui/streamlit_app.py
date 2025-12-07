@@ -14,7 +14,7 @@ import sys
 # Configs
 # -----------------------------------------------------------------------------
 # Max rows to materialize into pandas by default (safe)
-MAX_ROWS = int(os.environ.get("TRAFFY_UI_MAX_ROWS", 30000))
+MAX_ROWS = int(os.environ.get("TRAFFY_UI_MAX_ROWS", 1000))
 
 # Allow user to force a capped load if they want
 FORCE_LIMIT_ENV = bool(os.environ.get("TRAFFY_UI_FORCE_LIMIT", False))
