@@ -43,14 +43,14 @@ class DataStore:
     DATA_DIR = None
     
     # Full paths to your files - FIXED PATHS (removed duplicate dataset/DE_Viz/)
-    HOSPITALS_FILE = "./dataset/webscraping/output_csv_file/bangkok_hospitals_geocoded.csv"
-    HOSPITALS_FALLBACK = "./dataset/webscraping/input_csv_file/bangkok_hospitals.csv"
+    HOSPITALS_FILE = "/dataset/webscraping/output_csv_file/bangkok_hospitals_geocoded.csv"
+    HOSPITALS_FALLBACK = "/dataset/webscraping/input_csv_file/bangkok_hospitals.csv"
     
-    FIRE_STATIONS_FILE = "./dataset/webscraping/output_csv_file/fire_stations_geocoded.csv"
-    FIRE_STATIONS_FALLBACK = "./dataset/webscraping/input_csv_file/fire_stations.csv"
+    FIRE_STATIONS_FILE = "/dataset/webscraping/output_csv_file/fire_stations_geocoded.csv"
+    FIRE_STATIONS_FALLBACK = "/dataset/webscraping/input_csv_file/fire_stations.csv"
     
-    FIRE_DISASTER_FILE = "./dataset/webscraping/input_csv_file/fire_disaster_data.csv"
-    POPULATION_FILE = "./dataset/webscraping/input_csv_file/population.csv"
+    FIRE_DISASTER_FILE = "/dataset/webscraping/input_csv_file/fire_disaster_data.csv"
+    POPULATION_FILE = "/dataset/webscraping/input_csv_file/population.csv"
     
     def __new__(cls):
         """Singleton pattern - only one instance of DataStore."""

@@ -9,7 +9,6 @@ services:
       - "8501:8501"
     volumes:
       - ./DE_Viz:/DE_Viz
-      #- ./dataset:/DE_Viz/dataset
       - ./DE_AI/shared_data:/shared_data  # ✨ ADD THIS LINE
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
@@ -23,7 +22,6 @@ services:
       - "8502:8501"
     volumes:
       - ./DE_AI:/DE_AI
-      - ./dataset:/DE_AI/dataset
       - ./shared_data:/shared_data  # ✨ ADD THIS LINE
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}

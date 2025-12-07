@@ -46,8 +46,9 @@ def find_input_csv():
     """Find the bangkok_traffy.csv file in multiple possible locations."""
     possible_paths = [
         # Docker paths
-        "/DE_AI/dataset/traffy_fondue/bangkok_traffy.csv",
-        "./dataset/traffy_fondue/bangkok_traffy.csv",
+        # "/DE_AI/dataset/traffy_fondue/bangkok_traffy.csv",
+        # "./dataset/traffy_fondue/bangkok_traffy.csv",
+        "/dataset/traffy_fondue/bangkok_traffy.csv"
         
         # Local Windows paths (from DE_AI directory)
         "./dataset/traffy_fondue/bangkok_traffy.csv",
